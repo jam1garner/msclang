@@ -1,0 +1,52 @@
+expression ->
+    whitespace -> 
+        skip
+
+    not whitespace ->
+        letter ->
+            [ Continue reading while char follows (a-z|A-Z|0-9|_) ]
+            keyword ->
+                type specifier ->
+                    + [whitespace]
+                    + name (while alphanumeric)
+                    + [optional whitespace]
+                    - open parenthesis ->
+                        + [optional comma seperated expressions]
+                        + closed parenthesis
+                        + new scope ({})
+                    - equals
+                        + expression
+                    - semicolon
+                if ->
+                    + (expression)
+                    + single expression
+                else ->
+                    + single expression
+                return ->
+                    + single expression
+
+            non-keyword ->
+                + [name] 
+                
+                operation (=, +, -, *, /, <<, +=, -=, etc) ->
+                     + expression (second operand)
+
+                operation (++, --)
+
+                colon -> make label
+
+                open parenthesis ->
+                    + expressions, split by commas 
+                    + closed parenthesis
+
+        number ->
+            numeric literal
+
+        open bracket ->
+            new scope
+            + closed bracket
+
+        exclamationMark -> 
+            not
+            + single expression
+
