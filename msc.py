@@ -351,10 +351,10 @@ def parseCommands(text, refs={}, mscStrings=[]):
     return cmds
 
 class Command:
-    def __init__(self):
-        self.command = 0
-        self.parameters = []
-        self.pushBit = False
+    def __init__(self, command=0, parameters=[], pushBit=False):
+        self.command = command
+        self.parameters = parameters
+        self.pushBit = pushBit
         self.paramSize = 0
         self.commandPosition = 0
         self.debugString = None

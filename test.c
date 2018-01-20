@@ -8,8 +8,23 @@ int add1(int x)
 int yetAnother_test_variable2;
 
 void main(){
-    int testVariable = 0;
+    int testVariable = 5;
     float otherVariable;
+
+    int fun_ptr = &add1;
+    (*fun_ptr)(10);
+
+    otherVariable = 1.0f;
+    testVariable = 0x3A;
+    testVariable += 4;
+    testVariable++;
+    otherVariable = -otherVariable;
+    otherVariable = (float)testVariable;
+    int j = (3 + (int)otherVariable);
+
+    j = NULL;
+    j = M_E + M_PI;
+    j = true;
 
     if( !(testVariable + 1 == 2) ){
         syscall_1(0);
