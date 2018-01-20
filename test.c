@@ -5,6 +5,10 @@ int add1(int x)
     return x + 1;
 }
 
+float sin(float x){
+    return ((x) / 1.0) - ((x*x*x) / 6.0) + ((x*x*x*x*x) / 120.0) - ((x*x*x*x*x*x*x) / 5040.0);
+}
+
 int yetAnother_test_variable2;
 
 void main(){

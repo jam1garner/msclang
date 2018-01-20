@@ -4,24 +4,7 @@ from pycparser import c_parser, c_ast, parse_file
 import re
 import math
 
-class CompilerError(Exception):
-    def __init__(self,*args,**kwargs):
-        Exception.__init__(self,*args,**kwargs)
-
-class FileRefs:
-    def __init__(self, functions=[], globalVariables=[], globalVariableTypes={}):
-        self.functions = functions
-        self.globalVariables = globalVariables
-        self.globalVariableTypes = globalVariableTypes
-
-def removeComments(text):
-    text = re.sub(
-       '(?:\\/\\*(?=(?:[^"]*"[^"]*")*[^"]*$)(.|\\n)*?\\*\\/)|(?:\\/\\/(?=(?:[^"]*"[^"]*")*[^"]*$).*)', 
-       '', 
-       text
-    )
-    return text
-
+#Add to this as you see reaasonable 
 global_constants = {
     "NULL"          : 0,
     "false"         : 0,
@@ -41,6 +24,106 @@ global_constants = {
     "M_SQRT2"       : math.sqrt(2),
     "M_SQRT1_2"     : 1 / math.sqrt(2)
 }
+
+#Note if you add to this, please only add not replace to support backwards compatibility
+syscalls = {
+    "sys_0" : 0,
+    "sys_1" : 1,
+    "sys_2" : 2,
+    "sys_3" : 3,
+    "sys_4" : 4,
+    "sys_5" : 5,
+    "sys_6" : 6,
+    "sys_7" : 7,
+    "sys_8" : 8,
+    "sys_9" : 9,
+    "sys_A" : 10,
+    "sys_B" : 11,
+    "sys_C" : 12,
+    "sys_D" : 13,
+    "sys_E" : 14,
+    "sys_F" : 15,
+    "sys_10" : 16,
+    "sys_11" : 17,
+    "sys_12" : 18,
+    "sys_13" : 19,
+    "sys_14" : 20,
+    "sys_15" : 21,
+    "sys_16" : 22,
+    "sys_17" : 23,
+    "sys_18" : 24,
+    "sys_19" : 25,
+    "sys_1A" : 26,
+    "sys_1B" : 27,
+    "sys_1C" : 28,
+    "sys_1D" : 29,
+    "sys_1E" : 30,
+    "sys_1F" : 31,
+    "sys_20" : 32,
+    "sys_21" : 33,
+    "sys_22" : 34,
+    "sys_23" : 35,
+    "sys_24" : 36,
+    "sys_25" : 37,
+    "sys_26" : 38,
+    "sys_27" : 39,
+    "sys_28" : 40,
+    "sys_29" : 41,
+    "sys_2A" : 42,
+    "sys_2B" : 43,
+    "sys_2C" : 44,
+    "sys_2D" : 45,
+    "sys_2E" : 46,
+    "sys_2F" : 47,
+    "sys_30" : 48,
+    "sys_31" : 49,
+    "sys_32" : 50,
+    "sys_33" : 51,
+    "sys_34" : 52,
+    "sys_35" : 53,
+    "sys_36" : 54,
+    "sys_37" : 55,
+    "sys_38" : 56,
+    "sys_39" : 57,
+    "sys_3A" : 58,
+    "sys_3B" : 59,
+    "sys_3C" : 60,
+    "sys_3D" : 61,
+    "sys_3E" : 62,
+    "sys_3F" : 63,
+    "sys_40" : 64,
+    "sys_41" : 65,
+    "sys_42" : 66,
+    "sys_43" : 67,
+    "sys_44" : 68,
+    "sys_45" : 69,
+    "sys_46" : 70,
+    "sys_47" : 71,
+    "sys_48" : 72,
+    "sys_49" : 73,
+    "sys_4A" : 74,
+    "sys_4B" : 75,
+    "sys_4C" : 76,
+    "sys_4D" : 77
+}  
+
+class CompilerError(Exception):
+    def __init__(self,*args,**kwargs):
+        Exception.__init__(self,*args,**kwargs)
+
+class FileRefs:
+    def __init__(self, functions=[], globalVariables=[], globalVariableTypes={}):
+        self.functions = functions
+        self.globalVariables = globalVariables
+        self.globalVariableTypes = globalVariableTypes
+
+def removeComments(text):
+    text = re.sub(
+       '(?:\\/\\*(?=(?:[^"]*"[^"]*")*[^"]*$)(.|\\n)*?\\*\\/)|(?:\\/\\/(?=(?:[^"]*"[^"]*")*[^"]*$).*)', 
+       '', 
+       text
+    )
+    return text
 
 assignmentOperationsInt = {
     "="  : 0x1c,
@@ -267,10 +350,11 @@ def compileNode(node):
                 nodeOut.append(Command(0x38))
         nodeOut.append(Command(cmd))
     else:
-        node.show()
-        print(node)
-        print(node.__slots__)
-        print()
+        pass
+        # node.show()
+        # print(node)
+        # print(node.__slots__)
+        # print()
 
     return nodeOut
 
@@ -285,6 +369,9 @@ def compileScript(func):
         script += compileNode(node)
     script.insert(0, Command(2, [argCount, len(localVars)]))
     script.append(Command(3))
+    print()
+    print()
+    print(func.decl.name+":")
     for i in script:
         print(i)
     return script
