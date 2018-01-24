@@ -188,6 +188,16 @@ binaryOperationsFloat = {
 
 floatOperations = list(range(0x3a,0x46)) + [0x38]
 
+class Label:
+    def __init__(self, name=None):
+        self.name = name
+
+    def __str__(self):
+        if self.name:
+            return self.name+":"
+        else:
+            return "Label "+hex(id(self))+":"
+
 #This is to get around the fact python will throw an exception on
 #int('0900', 0) but not int('0900'). Sucks but whatever...
 def toInt(i):
@@ -222,13 +232,17 @@ def isCommandFloat(cmd):
             return True
     return False
 
-def compileNode(node):
-    global refs, localVars, localVarTypes, depth
-    if not isinstance(node, c_ast.Node):
-        raise ValueError("That's no node")
+def compileNode(node, loopParent=None, parentLoopCondition=None):
+    global refs, localVars, localVarTypes
 
-    depth += 1
     nodeOut = []
+
+    if isinstance(node, list):
+        for i in node:
+            nodeOut += compileNode(i, loopParent, parentLoopCondition)
+        return nodeOut
+    elif not isinstance(node, c_ast.Node):
+        raise ValueError("That's no node that's a "+str(type(node)))
 
     def addArgs(amt=1):
         if len(nodeOut) >= amt:
@@ -246,7 +260,7 @@ def compileNode(node):
             localVarNum = localVars.index(node.name)
 
         if node.init != None:
-            nodeOut += compileNode(node.init)
+            nodeOut += compileNode(node.init, loopParent, parentLoopCondition)
             addArgs()
             nodeOut.append(Command(0x1C, [0, localVarNum]))
     elif t == c_ast.Constant:
@@ -260,7 +274,7 @@ def compileNode(node):
                 msc.strings.append(node.value)
             nodeOut.append(Command(0xD, [msc.strings.index(node.value)]))
     elif t == c_ast.Assignment:
-        nodeOut += compileNode(node.rvalue)
+        nodeOut += compileNode(node.rvalue, loopParent, parentLoopCondition)
         addArgs()
         if type(node.lvalue) != c_ast.ID:
             raise CompilerError("Error at %s: Left hand side of assignment operation must be variable."%str(node.coord))
@@ -276,11 +290,11 @@ def compileNode(node):
         nodeOut.append(Command(operation,[varScope,varIndex]))
     elif t == c_ast.UnaryOp:
         if node.op == "!":
-            nodeOut += compileNode(node.expr)
+            nodeOut += compileNode(node.expr, loopParent, parentLoopCondition)
             addArgs()
             nodeOut.append(Command(0x2b))
         elif node.op == "~":
-            nodeOut += compileNode(node.expr)
+            nodeOut += compileNode(node.expr, loopParent, parentLoopCondition)
             addArgs()
             nodeOut.append(Command(0x18))
         elif node.op == "p++":
@@ -296,7 +310,7 @@ def compileNode(node):
             op = 0x40 if varType == "float" else 0x15
             nodeOut.append(Command(op, [varScope,varIndex], False))
         elif node.op == "-":
-            nodeOut += compileNode(node.expr)
+            nodeOut += compileNode(node.expr, loopParent, parentLoopCondition)
             addArgs()
             op = 0x3E if isCommandFloat(nodeOut[-1]) else 0x13
             nodeOut.append(Command(op))
@@ -305,6 +319,8 @@ def compileNode(node):
                 nodeOut.append(Command(0xA,[node.expr.name]))
             else:
                 raise CompilerError("Error at %s: The addressing of non-functions is not allowed."%str(node.coord))
+        elif node.op == "sizeof":
+            nodeOut.append(Command(0xD,[0x4]))
         else:
             raise CompilerError("Operation %s not supported" % node.op)
     elif t == c_ast.ID:
@@ -319,7 +335,7 @@ def compileNode(node):
             else:
                 raise CompilerError("Error at %s: Invalid reference."%str(node.coord))
     elif t == c_ast.Cast:
-        nodeOut += compileNode(node.expr)
+        nodeOut += compileNode(node.expr, loopParent, parentLoopCondition)
         addArgs()
         if node.to_type.type.type.names[-1] == "float":
             nodeOut.append(Command(0x38))
@@ -329,16 +345,16 @@ def compileNode(node):
         if node.expr == None:
             nodeOut.append(Command(0x7))
         else:
-            nodeOut += compileNode(node.expr)
+            nodeOut += compileNode(node.expr, loopParent, parentLoopCondition)
             addArgs()
             op = 0x8 if isCommandFloat(nodeOut[-1]) else 0x6
             nodeOut.append(Command(op))
     elif t == c_ast.BinaryOp:
-        nodeOut += compileNode(node.left)
+        nodeOut += compileNode(node.left, loopParent, parentLoopCondition)
         addArgs()
         pos = len(nodeOut)
         isFloat1 = isCommandFloat(nodeOut[-1])
-        nodeOut += compileNode(node.right)
+        nodeOut += compileNode(node.right, loopParent, parentLoopCondition)
         addArgs()
         isFloat2 = isCommandFloat(nodeOut[-1])
         isFloat = isFloat1 or isFloat2
@@ -349,12 +365,97 @@ def compileNode(node):
             if not isFloat2:
                 nodeOut.append(Command(0x38))
         nodeOut.append(Command(cmd))
+    elif t == c_ast.Goto:
+        nodeOut.append(Command(0x4,[node.name]))
+    elif t == c_ast.Label:
+        nodeOut.append(Label(node.name))
+        nodeOut += compileNode(node.stmt, loopParent, parentLoopCondition)
+    elif t == c_ast.If:
+        #TODO: optimize ifNot scenario
+        nodeOut += compileNode(node.cond, loopParent, parentLoopCondition)
+        addArgs()
+        ifFalseLabel = Label()
+        if node.iffalse != None:
+            endLabel = Label()
+        nodeOut.append(Command(0x34, [ifFalseLabel]))
+        nodeOut += compileNode(node.iftrue, loopParent, parentLoopCondition)
+        if node.iffalse != None:
+            nodeOut.append(Command(0x36, [endLabel]))
+        nodeOut.append(ifFalseLabel)
+        if node.iffalse != None:
+            nodeOut += compileNode(node.iffalse, loopParent, parentLoopCondition)
+            nodeOut.append(endLabel)
+    elif t == c_ast.Compound:
+        for i in node.block_items:
+            nodeOut += compileNode(i, loopParent, parentLoopCondition)
+    elif t == c_ast.While:
+        loopTop = Label()
+        endLabel = Label()
+        conditionLabel = Label()
+        nodeOut.append(Command(0x4, [conditionLabel]))
+        nodeOut.append(loopTop)
+        nodeOut += compileNode(node.stmt, endLabel, conditionLabel)
+        nodeOut.append(conditionLabel)
+        nodeOut += compileNode(node.cond, loopParent, parentLoopCondition)
+        addArgs()
+        nodeOut.append(Command(0x35, [loopTop]))
+        nodeOut.append(endLabel)
+    elif t == c_ast.DoWhile:
+        loopTop = Label()
+        endLabel = Label()
+        conditionLabel = Label()
+        nodeOut.append(loopTop)
+        nodeOut += compileNode(node.stmt, endLabel, conditionLabel)
+        nodeOut.append(conditionLabel)
+        nodeOut += compileNode(node.cond, loopParent, parentLoopCondition)
+        addArgs()
+        nodeOut.append(Command(0x35, [loopTop]))
+        nodeOut.append(endLabel)
+    elif t == c_ast.For:
+        for decl in node.init.decls:
+            nodeOut += compileNode(decl, loopParent, parentLoopCondition)
+        loopTop = Label()
+        endLabel = Label()
+        conditionLabel = Label()
+        nodeOut.append(loopTop)
+        nodeOut += compileNode(node.stmt, endLabel, conditionLabel)
+        nodeOut.append(conditionLabel)
+        nodeOut += compileNode(node.next, endLabel, conditionLabel)
+        nodeOut += compileNode(node.cond, loopParent, parentLoopCondition)
+        addArgs()
+        nodeOut.append(Command(0x35, [loopTop]))
+        nodeOut.append(endLabel)
+    elif t == c_ast.Break:
+        nodeOut.append(Command(0x4, [loopParent]))
+    elif t == c_ast.Continue:
+        nodeOut.append(Command(0x4, [parentLoopCondition]))
+    elif t == c_ast.Switch:
+        if type(node.cond) == c_ast.ID:
+            compiledVariable = compileNode(node.cond,loopParent, parentLoopCondition)
+        else:
+            raise CompilerError("Error at %s: Switch statements must have a variable as the condition"%str(node.coord))
+        blockEnd = Label()
+        for i in node.stmt.block_items:
+            nextStatement = Label()
+            if type(i) == c_ast.Case:
+                nodeOut += compileNode(i.expr, loopParent, parentLoopCondition)
+                addArgs()
+                nodeOut += compiledVariable
+                addArgs()
+                nodeOut.append(Command(0x25,[],True))
+                nodeOut.append(Command(0x34,[nextStatement]))
+                nodeOut += compileNode(i.stmts, blockEnd, parentLoopCondition)
+                nodeOut.append(nextStatement)
+            elif type(i) == c_ast.Default:
+                nodeOut += compileNode(i.stmts, blockEnd, parentLoopCondition)
+            else:
+                CompilerError("Error at %s: Switch statements cannot have anything but cases and defaults"%str(i.coord))
+        nodeOut.append(blockEnd)
     else:
-        pass
-        # node.show()
-        # print(node)
-        # print(node.__slots__)
-        # print()
+        node.show()
+        print(node)
+        print(node.__slots__)
+        print()
 
     return nodeOut
 
