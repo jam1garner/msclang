@@ -1,7 +1,11 @@
 void main(){
-  int i = 1;
-  while (i < 10){
-    printf("%i", i);
-    i = i + 1;
-  }
+    int i = 3;
+    while (i > 0){
+        printf("oof");
+        i--;
+    }
+    do {
+        printf("OOF");
+        i++;
+    } while(i < 3);
 }

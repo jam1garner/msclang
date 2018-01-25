@@ -165,6 +165,8 @@ binaryOperationsInt = {
     "&"  : 0x16,
     "|"  : 0x17,
     "^"  : 0x19,
+    "&&"  : 0x16,
+    "||"  : 0x17,
     "<<" : 0x1a,
     ">>" : 0x1b
 }
@@ -182,6 +184,8 @@ binaryOperationsFloat = {
     ">=" : 0x4b,
     "&"  : 0x16,
     "|"  : 0x17,
+    "&&"  : 0x16,
+    "||"  : 0x17,
     "^"  : 0x19,
     "<<" : 0x1a,
     ">>" : 0x1b
@@ -330,13 +334,13 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
                 CompilerError("Error at %s: Cannot increment non variable."%str(node.coord))
             varScope,varType,varIndex = resolveVariable(node.expr.name)
             op = 0x3F if varType == "float" else 0x14
-            nodeOut.append(Command(op, [varScope,varIndex], False))
+            nodeOut.append(Command(op, [varScope,varIndex]))
         elif node.op == "p--":
             if type(node.expr) != c_ast.ID:
                 CompilerError("Error at %s: Cannot decrement non variable."%str(node.coord))
             varScope,varType,varIndex = resolveVariable(node.expr.name)
             op = 0x40 if varType == "float" else 0x15
-            nodeOut.append(Command(op, [varScope,varIndex], False))
+            nodeOut.append(Command(op, [varScope,varIndex]))
         elif node.op == "-":
             nodeOut += compileNode(node.expr, loopParent, parentLoopCondition)
             addArg()
@@ -389,9 +393,9 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
         cmd = binaryOperationsFloat[node.op] if isFloat else binaryOperationsInt[node.op]
         if not cmd in range(0x16, 0x1C) and isFloat:
             if not isFloat1:
-                nodeOut.insert(pos, Command(0x38))
+                nodeOut.insert(pos, Command(0x38,[0]))
             if not isFloat2:
-                nodeOut.append(Command(0x38))
+                nodeOut.append(Command(0x38,[0]))
         nodeOut.append(Command(cmd))
     elif t == c_ast.Goto:
         nodeOut.append(Command(0x4,[node.name]))
