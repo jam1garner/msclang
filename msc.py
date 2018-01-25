@@ -480,7 +480,8 @@ class MscScript:
     def size(self):
         s = 0
         for cmd in self.cmds:
-            s += (0 if cmd.command in [0xFFFE, 0xFFFF] else 1) + getSizeFromFormat(COMMAND_FORMAT[cmd.command])
+            if type(cmd) == Command:
+                s += (0 if cmd.command in [0xFFFE, 0xFFFF] else 1) + getSizeFromFormat(COMMAND_FORMAT[cmd.command])
         return s
 
 def readInt(f, endian):

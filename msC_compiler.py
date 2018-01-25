@@ -3,6 +3,7 @@ from argparse import ArgumentParser
 from pycparser import c_parser, c_ast, parse_file
 import re
 import math
+import struct
 
 #Add to this as you see reaasonable 
 global_constants = {
@@ -244,10 +245,28 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
     elif not isinstance(node, c_ast.Node):
         raise ValueError("That's no node that's a "+str(type(node)))
 
-    def addArgs(amt=1):
-        if len(nodeOut) >= amt:
-            for i in range(amt):
-                nodeOut[-(i+1)].pushBit = True
+    def getLastCommand():
+        if len(nodeOut) > 0:
+            i = 1
+            while i <= len(nodeOut):
+                if type(nodeOut[-i]) == Command:
+                    return nodeOut[-i]
+                i += 1
+
+    def addArg():
+        if len(nodeOut) > 0:
+            i = 1
+            while i <= len(nodeOut):
+                if type(nodeOut[-i]) == Command and not nodeOut[-i].command in range(0x2f,0x32): 
+                    nodeOut[-1].pushBit = True
+                    return
+                elif type(nodeOut[-i]) == Command:
+                    while i <= len(nodeOut):
+                        if type(nodeOut[-i]) == Command and nodeOut[-i].command == 0x2e:
+                            nodeOut[-i].pushBit = True
+                            return
+                        i += 1
+                i += 1
 
     t = type(node)
 
@@ -261,7 +280,7 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
 
         if node.init != None:
             nodeOut += compileNode(node.init, loopParent, parentLoopCondition)
-            addArgs()
+            addArg()
             nodeOut.append(Command(0x1C, [0, localVarNum]))
     elif t == c_ast.Constant:
         if node.type == "int" or node.type == "bool":
@@ -275,7 +294,7 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
             nodeOut.append(Command(0xD, [msc.strings.index(node.value)]))
     elif t == c_ast.Assignment:
         nodeOut += compileNode(node.rvalue, loopParent, parentLoopCondition)
-        addArgs()
+        addArg()
         if type(node.lvalue) != c_ast.ID:
             raise CompilerError("Error at %s: Left hand side of assignment operation must be variable."%str(node.coord))
         try:
@@ -291,11 +310,11 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
     elif t == c_ast.UnaryOp:
         if node.op == "!":
             nodeOut += compileNode(node.expr, loopParent, parentLoopCondition)
-            addArgs()
+            addArg()
             nodeOut.append(Command(0x2b))
         elif node.op == "~":
             nodeOut += compileNode(node.expr, loopParent, parentLoopCondition)
-            addArgs()
+            addArg()
             nodeOut.append(Command(0x18))
         elif node.op == "p++":
             if type(node.expr) != c_ast.ID:
@@ -311,7 +330,7 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
             nodeOut.append(Command(op, [varScope,varIndex], False))
         elif node.op == "-":
             nodeOut += compileNode(node.expr, loopParent, parentLoopCondition)
-            addArgs()
+            addArg()
             op = 0x3E if isCommandFloat(nodeOut[-1]) else 0x13
             nodeOut.append(Command(op))
         elif node.op == "&":
@@ -336,27 +355,27 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
                 raise CompilerError("Error at %s: Invalid reference."%str(node.coord))
     elif t == c_ast.Cast:
         nodeOut += compileNode(node.expr, loopParent, parentLoopCondition)
-        addArgs()
+        addArg()
         if node.to_type.type.type.names[-1] == "float":
-            nodeOut.append(Command(0x38))
+            nodeOut.append(Command(0x38,[0]))
         else:
-            nodeOut.append(Command(0x39))
+            nodeOut.append(Command(0x39,[0]))
     elif t == c_ast.Return:
         if node.expr == None:
             nodeOut.append(Command(0x7))
         else:
             nodeOut += compileNode(node.expr, loopParent, parentLoopCondition)
-            addArgs()
-            op = 0x8 if isCommandFloat(nodeOut[-1]) else 0x6
+            addArg()
+            op = 0x8 if isCommandFloat(getLastCommand()) else 0x6
             nodeOut.append(Command(op))
     elif t == c_ast.BinaryOp:
         nodeOut += compileNode(node.left, loopParent, parentLoopCondition)
-        addArgs()
+        addArg()
         pos = len(nodeOut)
-        isFloat1 = isCommandFloat(nodeOut[-1])
+        isFloat1 = isCommandFloat(getLastCommand())
         nodeOut += compileNode(node.right, loopParent, parentLoopCondition)
-        addArgs()
-        isFloat2 = isCommandFloat(nodeOut[-1])
+        addArg()
+        isFloat2 = isCommandFloat(getLastCommand())
         isFloat = isFloat1 or isFloat2
         cmd = binaryOperationsFloat[node.op] if isFloat else binaryOperationsInt[node.op]
         if not cmd in range(0x16, 0x1C) and isFloat:
@@ -373,7 +392,7 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
     elif t == c_ast.If:
         #TODO: optimize ifNot scenario
         nodeOut += compileNode(node.cond, loopParent, parentLoopCondition)
-        addArgs()
+        addArg()
         ifFalseLabel = Label()
         if node.iffalse != None:
             endLabel = Label()
@@ -397,7 +416,7 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
         nodeOut += compileNode(node.stmt, endLabel, conditionLabel)
         nodeOut.append(conditionLabel)
         nodeOut += compileNode(node.cond, loopParent, parentLoopCondition)
-        addArgs()
+        addArg()
         nodeOut.append(Command(0x35, [loopTop]))
         nodeOut.append(endLabel)
     elif t == c_ast.DoWhile:
@@ -408,7 +427,7 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
         nodeOut += compileNode(node.stmt, endLabel, conditionLabel)
         nodeOut.append(conditionLabel)
         nodeOut += compileNode(node.cond, loopParent, parentLoopCondition)
-        addArgs()
+        addArg()
         nodeOut.append(Command(0x35, [loopTop]))
         nodeOut.append(endLabel)
     elif t == c_ast.For:
@@ -422,7 +441,7 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
         nodeOut.append(conditionLabel)
         nodeOut += compileNode(node.next, endLabel, conditionLabel)
         nodeOut += compileNode(node.cond, loopParent, parentLoopCondition)
-        addArgs()
+        addArg()
         nodeOut.append(Command(0x35, [loopTop]))
         nodeOut.append(endLabel)
     elif t == c_ast.Break:
@@ -439,9 +458,9 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
             nextStatement = Label()
             if type(i) == c_ast.Case:
                 nodeOut += compileNode(i.expr, loopParent, parentLoopCondition)
-                addArgs()
+                addArg()
                 nodeOut += compiledVariable
-                addArgs()
+                addArg()
                 nodeOut.append(Command(0x25,[],True))
                 nodeOut.append(Command(0x34,[nextStatement]))
                 nodeOut += compileNode(i.stmts, blockEnd, parentLoopCondition)
@@ -451,6 +470,34 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
             else:
                 CompilerError("Error at %s: Switch statements cannot have anything but cases and defaults"%str(i.coord))
         nodeOut.append(blockEnd)
+    elif t == c_ast.FuncCall:
+        name = None if type(node.name) != c_ast.ID else node.name.name
+        if name == "printf":
+            for arg in node.args.exprs:
+                nodeOut += compileNode(arg, loopParent, parentLoopCondition)
+                addArg()
+            nodeOut.append(Command(0x2c, [len(node.args.exprs)]))
+        elif name in syscalls:
+            sysNum = syscalls[name]
+            for arg in node.args.exprs:
+                nodeOut += compileNode(arg, loopParent, parentLoopCondition)
+                addArg()
+            nodeOut.append(Command(0x2d, [len(node.args.exprs), sysNum]))
+        else:
+            endLabel = Label()
+            if name != None and not name in refs.functions:
+                raise CompilerError("Error at %s: function %s does not exist"%(str(node.coord),name))
+            elif name != None:
+                funcPtr = [Command(0xA, [name], True)]
+            elif type(node.name) == c_ast.UnaryOp and node.name.op == "*":
+                funcPtr = compileNode(node.name.expr, loopParent, parentLoopCondition)
+            nodeOut.append(Command(0x2e, [endLabel]))
+            for arg in node.args.exprs:
+                nodeOut += compileNode(arg, loopParent, parentLoopCondition)
+                addArg()
+            nodeOut += funcPtr
+            nodeOut.append(Command(0x2f, [len(node.args.exprs)]))
+            nodeOut.append(endLabel)
     else:
         node.show()
         print(node)
@@ -460,22 +507,113 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
     return nodeOut
 
 def compileScript(func):
-    global msc, refs, localVars, localVarTypes, depth
+    global msc, refs, localVars, localVarTypes
     localVars = [x.name for x in func.decl.type.args.params] if func.decl.type.args != None else []
     localVarTypes = dict([(x.name, x.type.type.names[-1]) for x in func.decl.type.args.params] if func.decl.type.args != None else [])
     argCount = len(localVars)
     script = []
     for node in func.body.block_items:
-        depth = -1
         script += compileNode(node)
     script.insert(0, Command(2, [argCount, len(localVars)]))
     script.append(Command(3))
-    print()
-    print()
-    print(func.decl.name+":")
-    for i in script:
-        print(i)
     return script
+
+def resolveReferences(msc):
+    global refs
+    scriptPositions = []
+    labelPostions = {}
+    namedLabelPositions = []
+    currentPos = 0x10
+    for i,script in enumerate(msc.scripts):
+        namedLabelPositions.append({})
+        scriptPositions.append(currentPos)
+        for cmd in script.cmds:
+            if type(cmd) == Command:
+                cmd.commandPosition = currentPos
+                currentPos += (0 if cmd.command in [0xFFFE, 0xFFFF] else 1) + getSizeFromFormat(COMMAND_FORMAT[cmd.command])
+            elif type(cmd) == Label:
+                if cmd.name != None:
+                    namedLabelPositions[i][cmd.name] = currentPos
+                labelPostions[cmd] = currentPos
+    refs.scriptPositions = scriptPositions
+    for j,script in enumerate(msc.scripts):
+        for cmd in script.cmds:
+            if type(cmd) == Command:
+                for i,arg in enumerate(cmd.parameters):
+                    if type(arg) == str:
+                        if arg in namedLabelPositions[j]:
+                            cmd.parameters[i] = namedLabelPositions[j][arg]
+                        else:
+                            cmd.parameters[i] = scriptPositions[refs.functions.index(arg)]
+                    elif type(arg) == Label:
+                        cmd.parameters[i] = labelPostions[arg]
+
+#Thanks Triptych https://stackoverflow.com/questions/1265665/python-check-if-a-string-represents-an-int-without-using-try-except
+def _RepresentsInt(s):
+    try:
+        int(s, 0)
+        return True
+    except:
+        return False
+
+def _RepresentsFloat(s):
+    try:
+        float(s.rstrip('f'))
+        return True
+    except:
+        return False
+
+def writeToFile(msc):
+    global refs, args
+    currentPos = 0x10
+    for script in msc.scripts:
+        currentPos += script.size()
+
+    maxStringLength = 0
+    for string in msc.strings:
+        if len(string) > maxStringLength:
+            maxStringLength = len(string)
+    if maxStringLength % 0x10 != 0:
+        maxStringLength += 0x10 - (maxStringLength % 0x10)
+
+    fileBytes = MSC_MAGIC
+    fileBytes += struct.pack('<L', currentPos)
+    fileBytes += struct.pack('<L', 0x10 if not 'main' in refs.functions else refs.scriptPositions[refs.functions.index('main')])
+    fileBytes += struct.pack('<L', len(msc.scripts))
+    fileBytes += struct.pack('<L', 0x16)#This probably doesn't matter?
+    fileBytes += struct.pack('<L', maxStringLength)
+    fileBytes += struct.pack('<L', len(msc.strings))
+    fileBytes += struct.pack('<L', 0)
+    fileBytes += struct.pack('<L', 0)
+    fileBytes += b'\x00' * 0x10
+
+    for script in msc.scripts:
+        for cmd in script:
+            if type(cmd) == Command:
+                for i in range(len(cmd.parameters)):
+                    if type(cmd.parameters[i]) == float:
+                        cmd.parameters[i] = struct.unpack('>L', struct.pack('>f', cmd.parameters[i]))[0]
+                fileBytes += cmd.write()
+
+    if len(fileBytes) % 0x10 != 0:
+        fileBytes += b'\x00' * (0x10 - (len(fileBytes) % 0x10))
+
+    for i in range(len(msc.scripts)):
+        fileBytes += struct.pack('<L',refs.scriptPositions[i])
+
+    if len(fileBytes) % 0x10 != 0:
+        fileBytes += b'\x00' * (0x10 - (len(fileBytes) % 0x10))
+
+    for string in msc.strings:
+        fileBytes += string.encode('utf-8')
+        fileBytes += b'\x00' * (maxStringLength - len(string))
+
+    if len(fileBytes) % 0x10 != 0:
+        fileBytes += b'\x00' * (0x10 - (len(fileBytes) % 0x10))
+
+    filename = 'output.mscsb' if args.filename == None else args.filename
+    with open(filename, 'wb') as f:
+        f.write(fileBytes)
 
 def compileString(fileText):
     global args, msc, refs
@@ -504,7 +642,11 @@ def compileString(fileText):
 
     for decl in ast.ext:
         if isinstance(decl, c_ast.FuncDef):
-            compileScript(decl)
+            newScript = MscScript()
+            newScript.cmds = compileScript(decl)
+            msc.scripts.append(newScript)
+    resolveReferences(msc)
+    writeToFile(msc)
 
 def compileFile(filepath):
     with open(filepath, 'r') as f:
@@ -520,4 +662,5 @@ if __name__ == "__main__":
     parser = ArgumentParser(description="Compile msC to MSC bytecode")
     parser.add_argument('files', metavar='files', type=str, nargs='+',
                         help='files to compile')
+    parser.add_argument('-o', dest='filename', help='Filename to output to')
     main(parser.parse_args())
