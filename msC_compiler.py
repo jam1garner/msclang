@@ -257,10 +257,10 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
         if len(nodeOut) > 0:
             i = 1
             while i <= len(nodeOut):
-                if type(nodeOut[-i]) == Command and not nodeOut[-i].command in range(0x2f,0x32): 
+                if type(nodeOut[-i]) == Command and not nodeOut[-i].command in range(0x2f,0x32) and not nodeOut[-i].command in range(0x38,0x40): 
                     nodeOut[-1].pushBit = True
                     return
-                elif type(nodeOut[-i]) == Command:
+                elif type(nodeOut[-i]) == Command and not nodeOut[-i].command in range(0x38,0x40):
                     while i <= len(nodeOut):
                         if type(nodeOut[-i]) == Command and nodeOut[-i].command == 0x2e:
                             nodeOut[-i].pushBit = True
@@ -281,6 +281,10 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
         if node.init != None:
             nodeOut += compileNode(node.init, loopParent, parentLoopCondition)
             addArg()
+            if node.type.type.names[-1] == "float" and not isCommandFloat(getLastCommand()):
+                nodeOut.append(Command(0x38, [0]))
+            elif node.type.type.names[-1] != "float" and isCommandFloat(getLastCommand()):
+                nodeOut.append(Command(0x39, [0]))
             nodeOut.append(Command(0x1C, [0, localVarNum]))
     elif t == c_ast.Constant:
         if node.type == "int" or node.type == "bool":
@@ -301,6 +305,11 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
             varScope,varType,varIndex = resolveVariable(node.lvalue.name)
         except CompilerError:
             raise CompilerError("Error at %s: Left hand side of assignment operation must be a valid reference to a variable."%str(node.coord))
+        
+        if varType == "float" and not isCommandFloat(getLastCommand()):
+                nodeOut.append(Command(0x38, [0]))
+        elif varType != "float" and isCommandFloat(getLastCommand()):
+                nodeOut.append(Command(0x39, [0]))
         
         if varType == "float":
             operation = assignmentOperationsFloat[node.op]
