@@ -7,6 +7,12 @@ MSClang is a custom compiler written in python made to compile C to MSC bytecode
 * Python 3 (3.5 or higher suggested)
 * pycparser (Can be obtained using `pip install pycparser`)
 
+### Installation
+
+* Extract contents (unit_tests folder not needed) anywhere
+* Add that folder to path if it is not already
+* Ensure the proper script (msclang.bat on windows, msclang.sh on linux) uses python 3 (by default it uses the `python` command, however this may need to be changed to `python3` or your system's equivelant)
+
 ### Features
 
 MSClang is based heavily on C but has lots of differences in order to best suite the target environment. While parsing follows the C99 standard, some features are missing. Here is a small list of differences:
