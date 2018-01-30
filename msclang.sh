@@ -1,2 +1,4 @@
 #!/bin/bash
-python msclang.py "$@"
+SCRIPT=`realpath $0`
+SCRIPTPATH=`dirname $SCRIPT`
+python "$(SCRIPTPATH)"/msclang.py "$@"

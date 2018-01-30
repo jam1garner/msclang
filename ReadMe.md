@@ -10,7 +10,7 @@ MSClang is a custom compiler written in python made to compile C to MSC bytecode
 ### Installation
 
 * Extract contents (unit_tests folder not needed) anywhere
-* Add that folder to path if it is not already
+* Add that folder to PATH if it is not already
 * Ensure the proper script (msclang.bat on windows, msclang.sh on linux) uses python 3 (by default it uses the `python` command, however this may need to be changed to `python3` or your system's equivelant)
 
 ### Features

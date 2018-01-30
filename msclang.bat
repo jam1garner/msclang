@@ -1,2 +1,2 @@
 @echo off
-python msclang.py "%*"
+python %~dp0/msclang.py "%*"
