@@ -191,6 +191,15 @@ binaryOperationsFloat = {
     ">>" : 0x1b
 }
 
+operationOpposite = {
+    0x26 : 0x25,
+    0x25 : 0x26,
+    0x2a : 0x27,
+    0x29 : 0x28,
+    0x28 : 0x29,
+    0x27 : 0x2a
+}
+
 floatOperations = list(range(0x3a,0x46)) + [0x38]
 
 class Label:
@@ -323,8 +332,12 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
     elif t == c_ast.UnaryOp:
         if node.op == "!":
             nodeOut += compileNode(node.expr, loopParent, parentLoopCondition)
-            addArg()
-            nodeOut.append(Command(0x2b))
+            lastCommand = getLastCommand()
+            if lastCommand.command in operationOpposite:
+                lastCommand.command = operationOpposite[lastCommand.command]
+            else:
+                addArg()
+                nodeOut.append(Command(0x2b))
         elif node.op == "~":
             nodeOut += compileNode(node.expr, loopParent, parentLoopCondition)
             addArg()
@@ -403,13 +416,16 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
         nodeOut.append(Label(node.name))
         nodeOut += compileNode(node.stmt, loopParent, parentLoopCondition)
     elif t == c_ast.If:
-        #TODO: optimize ifNot scenario
-        nodeOut += compileNode(node.cond, loopParent, parentLoopCondition)
+        isIfNot = type(node.cond) == c_ast.UnaryOp and node.cond.op == "!"
+        if isIfNot:
+            nodeOut += compileNode(node.cond.expr, loopParent, parentLoopCondition)
+        else:
+            nodeOut += compileNode(node.cond, loopParent, parentLoopCondition)
         addArg()
         ifFalseLabel = Label()
         if node.iffalse != None:
             endLabel = Label()
-        nodeOut.append(Command(0x34, [ifFalseLabel]))
+        nodeOut.append(Command(0x35 if isIfNot else 0x34, [ifFalseLabel]))
         nodeOut += compileNode(node.iftrue, loopParent, parentLoopCondition)
         if node.iffalse != None:
             nodeOut.append(Command(0x36, [endLabel]))
