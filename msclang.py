@@ -490,6 +490,16 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
                 nodeOut += compileNode(arg, loopParent, parentLoopCondition)
                 addArg()
             nodeOut.append(Command(0x2c, [len(node.args.exprs)]))
+        elif name == "set_main":
+            if len(node.args.exprs) == 0:
+                raise CompilerError("Error at %s: set_main requires at least 1 argument (function pointer)"%str(node.coord))
+            funcPtr = compileNode(node.args.exprs[0], loopParent, parentLoopCondition)
+            funcArgs = node.args.exprs[1:]
+            for arg in funcArgs:
+                nodeOut += compileNode(arg, loopParent, parentLoopCondition)
+                addArg()
+            nodeOut += funcPtr
+            nodeOut.append(Command(0x30, [len(funcArgs)]))
         elif name in syscalls:
             sysNum = syscalls[name]
             for arg in node.args.exprs:
