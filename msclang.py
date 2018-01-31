@@ -416,11 +416,12 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
         nodeOut.append(Label(node.name))
         nodeOut += compileNode(node.stmt, loopParent, parentLoopCondition)
     elif t == c_ast.If:
-        isIfNot = type(node.cond) == c_ast.UnaryOp and node.cond.op == "!"
-        if isIfNot:
-            nodeOut += compileNode(node.cond.expr, loopParent, parentLoopCondition)
-        else:
-            nodeOut += compileNode(node.cond, loopParent, parentLoopCondition)
+        nodeOut += compileNode(node.cond, loopParent, parentLoopCondition)
+        isIfNot = False
+        lastCommand = getLastCommand()
+        if lastCommand != None and lastCommand.command == 0x2b:
+            nodeOut.remove(getLastCommand())
+            isIfNot = True
         addArg()
         ifFalseLabel = Label()
         if node.iffalse != None:

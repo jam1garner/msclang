@@ -1,7 +1,6 @@
 void main(){
     //This should be optimized down to if and != instead of a not, an == and an if
-    int c = !( 3+4 == 8 );
-    if(c){
+    if(!(3 + 4 == 8)){
         printf("Success");
     }
 
@@ -11,8 +10,7 @@ void main(){
     }
 
     //This should be optimized down to if and <= instead of if, not and >
-    c = !(3 > 4);
-    if(c){
+    if(!(3 > 4)){
         printf("Success");
     }
 }
