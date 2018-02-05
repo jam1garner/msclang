@@ -5,7 +5,7 @@ import re
 import math
 import struct
 
-#Add to this as you see reaasonable 
+# Add to this as you see reasonable 
 global_constants = {
     "NULL"          : 0,
     "false"         : 0,
@@ -26,7 +26,7 @@ global_constants = {
     "M_SQRT1_2"     : 1 / math.sqrt(2)
 }
 
-#Note if you add to this, please only add not replace to support backwards compatibility
+# Note if you add to this, please only add not replace to support backwards compatibility
 syscalls = {
     "sys_0" : 0,
     "sys_1" : 1,
@@ -126,6 +126,7 @@ def removeComments(text):
     )
     return text
 
+# Define a bunch of dictionaries to help resolve text to commands
 assignmentOperationsInt = {
     "="  : 0x1c,
     "+=" : 0x1d,
@@ -212,8 +213,8 @@ class Label:
         else:
             return "Label "+hex(id(self))+":"
 
-#This is to get around the fact python will throw an exception on
-#int('0900', 0) but not int('0900'). Sucks but whatever...
+# This is to get around the fact python will throw an exception on
+# int('0900', 0) but not int('0900'). Sucks but whatever...
 def toInt(i):
     try:
         return int(i,0)
@@ -235,6 +236,7 @@ def resolveVariable(name):
         raise CompilerError("Invalid reference")
     return (varScope,varType,varIndex)
 
+# Guess if a command returns a float or an int
 def isCommandFloat(cmd):
     global refs, localVars, localVarTypes
     if cmd.command in floatOperations or (cmd.command == 0xA and type(cmd.parameters[0]) == float):
@@ -246,6 +248,7 @@ def isCommandFloat(cmd):
             return True
     return False
 
+# Take a abstract syntax tree node and recursively compile it
 def compileNode(node, loopParent=None, parentLoopCondition=None):
     global refs, localVars, localVarTypes
 
@@ -258,6 +261,7 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
     elif not isinstance(node, c_ast.Node):
         raise ValueError("That's no node that's a "+str(type(node)))
 
+    # Macro for getting the last command (skip any labels)
     def getLastCommand():
         if len(nodeOut) > 0:
             i = 1
@@ -266,6 +270,7 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
                     return nodeOut[-i]
                 i += 1
 
+    # Macro for marking the last command as an argument for the current command
     def addArg():
         if len(nodeOut) > 0:
             i = 1
@@ -282,7 +287,17 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
                 i += 1
 
     t = type(node)
+    
+    # Check the type, depending on which type it is compile as it should
+    # If an argument needs to be compiled, recursively call compile on the node
 
+    # How to read the following code:
+    # 1. read as if t is NodeType
+    # 2. addArgs() = the last compiled command should be pushed to the stack
+    # 3. being appended to nodeOut is adding it to the compiled version of the node
+    # 4. Command(n, l) is defining a comamnd of id n with a list of args l
+    #    the definition for Command is in msc.py, a dictionary of command name to id
+    #    is also available in msc.py called "COMMAND_IDS" near the top
     if t == c_ast.Decl:
         if not node.name in localVars:
             localVarNum = len(localVars)
@@ -558,6 +573,7 @@ def compileScript(func):
     script.append(Command(3))
     return script
 
+# Fill in function pointers, labels with locations rather than strings
 def resolveReferences(msc):
     global refs
     scriptPositions = []
@@ -588,7 +604,7 @@ def resolveReferences(msc):
                     elif type(arg) == Label:
                         cmd.parameters[i] = labelPostions[arg]
 
-#Thanks Triptych https://stackoverflow.com/questions/1265665/python-check-if-a-string-represents-an-int-without-using-try-except
+# Thanks Triptych https://stackoverflow.com/questions/1265665/python-check-if-a-string-represents-an-int-without-using-try-except
 def _RepresentsInt(s):
     try:
         int(s, 0)
@@ -603,12 +619,14 @@ def _RepresentsFloat(s):
     except:
         return False
 
+# Write as MSCSB format
 def writeToFile(msc):
     global refs, args
     currentPos = 0x10
     for script in msc.scripts:
         currentPos += script.size()
 
+    # Calculate string buffer size based on the longest string
     maxStringLength = 0
     for string in msc.strings:
         if len(string) > maxStringLength:
@@ -616,6 +634,7 @@ def writeToFile(msc):
     if maxStringLength % 0x10 != 0:
         maxStringLength += 0x10 - (maxStringLength % 0x10)
 
+    # Write file header
     fileBytes = MSC_MAGIC
     fileBytes += struct.pack('<L', currentPos)
     fileBytes += struct.pack('<L', 0x10 if not 'main' in refs.functions else refs.scriptPositions[refs.functions.index('main')])
@@ -627,6 +646,7 @@ def writeToFile(msc):
     fileBytes += struct.pack('<L', 0)
     fileBytes += b'\x00' * 0x10
 
+    # Write each script
     for script in msc.scripts:
         for cmd in script:
             if type(cmd) == Command:
@@ -635,26 +655,29 @@ def writeToFile(msc):
                         cmd.parameters[i] = struct.unpack('>L', struct.pack('>f', cmd.parameters[i]))[0]
                 fileBytes += cmd.write()
 
+    # Write padding
     if len(fileBytes) % 0x10 != 0:
         fileBytes += b'\x00' * (0x10 - (len(fileBytes) % 0x10))
 
+    # Write script positions (may be unused tbh)
     for i in range(len(msc.scripts)):
         fileBytes += struct.pack('<L',refs.scriptPositions[i])
 
+    # Write more padding
     if len(fileBytes) % 0x10 != 0:
         fileBytes += b'\x00' * (0x10 - (len(fileBytes) % 0x10))
 
+    # Write the strings (+ padding)
     for string in msc.strings:
         fileBytes += string.encode('utf-8')
         fileBytes += b'\x00' * (maxStringLength - len(string))
 
-    if len(fileBytes) % 0x10 != 0:
-        fileBytes += b'\x00' * (0x10 - (len(fileBytes) % 0x10))
-
+    # Write to file
     filename = 'output.mscsb' if args.filename == None else args.filename
     with open(filename, 'wb') as f:
         f.write(fileBytes)
 
+# Parse and compile from a string
 def compileString(fileText):
     global args, msc, refs
     parser = c_parser.CParser()
@@ -692,6 +715,7 @@ def compileFile(filepath):
     with open(filepath, 'r') as f:
         return compileString(f.read())
 
+# Compile contents of the file to a string
 def main(arguments):
     global args
     args = arguments
