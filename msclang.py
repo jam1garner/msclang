@@ -237,8 +237,10 @@ def resolveVariable(name):
     return (varScope,varType,varIndex)
 
 # Guess if a command returns a float or an int
-def isCommandFloat(cmd):
+def isCommandFloat(cmd, lookingFor):
     global refs, localVars, localVarTypes
+    if cmd.command == 0x2d:
+        return lookingFor
     if cmd.command in floatOperations or (cmd.command == 0xA and type(cmd.parameters[0]) == float):
         return True
     if cmd.command == 0xb:
@@ -275,10 +277,10 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
         if len(nodeOut) > 0:
             i = 1
             while i <= len(nodeOut):
-                if type(nodeOut[-i]) == Command and not nodeOut[-i].command in range(0x2f,0x32) and not nodeOut[-i].command in range(0x38,0x40): 
+                if type(nodeOut[-i]) == Command and not nodeOut[-i].command in range(0x2f,0x32) and not nodeOut[-i].command in range(0x38,0x3a): 
                     nodeOut[-i].pushBit = True
                     return
-                elif type(nodeOut[-i]) == Command and not nodeOut[-i].command in range(0x38,0x40):
+                elif type(nodeOut[-i]) == Command and not nodeOut[-i].command in range(0x38,0x3a):
                     while i <= len(nodeOut):
                         if type(nodeOut[-i]) == Command and nodeOut[-i].command == 0x2e:
                             nodeOut[-i].pushBit = True
@@ -308,9 +310,9 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
         if node.init != None:
             nodeOut += compileNode(node.init, loopParent, parentLoopCondition)
             addArg()
-            if node.type.type.names[-1] == "float" and not isCommandFloat(getLastCommand()):
+            if node.type.type.names[-1] == "float" and not isCommandFloat(getLastCommand(), True):
                 nodeOut.append(Command(0x38, [0]))
-            elif node.type.type.names[-1] != "float" and isCommandFloat(getLastCommand()):
+            elif node.type.type.names[-1] != "float" and isCommandFloat(getLastCommand(), False):
                 nodeOut.append(Command(0x39, [0]))
             nodeOut.append(Command(0x1C, [0, localVarNum]))
     elif t == c_ast.Constant:
@@ -333,9 +335,9 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
         except CompilerError:
             raise CompilerError("Error at %s: Left hand side of assignment operation must be a valid reference to a variable."%str(node.coord))
         
-        if varType == "float" and not isCommandFloat(getLastCommand()):
+        if varType == "float" and not isCommandFloat(getLastCommand(), True):
                 nodeOut.append(Command(0x38, [0]))
-        elif varType != "float" and isCommandFloat(getLastCommand()):
+        elif varType != "float" and isCommandFloat(getLastCommand(), False):
                 nodeOut.append(Command(0x39, [0]))
         
         if varType == "float":
@@ -371,7 +373,7 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
         elif node.op == "-":
             nodeOut += compileNode(node.expr, loopParent, parentLoopCondition)
             addArg()
-            op = 0x3E if isCommandFloat(nodeOut[-1]) else 0x13
+            op = 0x3E if isCommandFloat(nodeOut[-1], False) else 0x13
             nodeOut.append(Command(op))
         elif node.op == "&":
             if type(node.expr) == c_ast.ID:
@@ -406,16 +408,16 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
         else:
             nodeOut += compileNode(node.expr, loopParent, parentLoopCondition)
             addArg()
-            op = 0x8 if isCommandFloat(getLastCommand()) else 0x6
+            op = 0x8 if isCommandFloat(getLastCommand(), False) else 0x6
             nodeOut.append(Command(op))
     elif t == c_ast.BinaryOp:
         nodeOut += compileNode(node.left, loopParent, parentLoopCondition)
         addArg()
         pos = len(nodeOut)
-        isFloat1 = isCommandFloat(getLastCommand())
+        isFloat1 = isCommandFloat(getLastCommand(), False)
         nodeOut += compileNode(node.right, loopParent, parentLoopCondition)
         addArg()
-        isFloat2 = isCommandFloat(getLastCommand())
+        isFloat2 = isCommandFloat(getLastCommand(), isFloat1)
         isFloat = isFloat1 or isFloat2
         cmd = binaryOperationsFloat[node.op] if isFloat else binaryOperationsInt[node.op]
         if not cmd in range(0x16, 0x1C) and isFloat:
@@ -530,6 +532,7 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
                 nodeOut += compileNode(arg, loopParent, parentLoopCondition)
                 addArg()
             nodeOut += funcPtr
+            addArg()
             nodeOut.append(Command(0x30, [len(funcArgs)]))
         elif name in syscalls:
             sysNum = syscalls[name]
