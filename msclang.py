@@ -549,11 +549,12 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
             elif type(node.name) == c_ast.UnaryOp and node.name.op == "*":
                 funcPtr = compileNode(node.name.expr, loopParent, parentLoopCondition)
             nodeOut.append(Command(0x2e, [endLabel]))
-            for arg in node.args.exprs:
-                nodeOut += compileNode(arg, loopParent, parentLoopCondition)
-                addArg()
+            if node.args != None:
+                for arg in node.args.exprs:
+                    nodeOut += compileNode(arg, loopParent, parentLoopCondition)
+                    addArg()
             nodeOut += funcPtr
-            nodeOut.append(Command(0x2f, [len(node.args.exprs)]))
+            nodeOut.append(Command(0x2f, [len(node.args.exprs) if node.args != None else 0]))
             nodeOut.append(endLabel)
     else:
         node.show()
