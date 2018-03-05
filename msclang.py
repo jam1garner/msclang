@@ -276,7 +276,7 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
             i = 1
             while i <= len(nodeOut):
                 if type(nodeOut[-i]) == Command and not nodeOut[-i].command in range(0x2f,0x32) and not nodeOut[-i].command in range(0x38,0x40): 
-                    nodeOut[-1].pushBit = True
+                    nodeOut[-i].pushBit = True
                     return
                 elif type(nodeOut[-i]) == Command and not nodeOut[-i].command in range(0x38,0x40):
                     while i <= len(nodeOut):
@@ -305,7 +305,6 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
             localVarTypes[node.name] = node.type.type.names[-1]
         else:
             localVarNum = localVars.index(node.name)
-
         if node.init != None:
             nodeOut += compileNode(node.init, loopParent, parentLoopCondition)
             addArg()
