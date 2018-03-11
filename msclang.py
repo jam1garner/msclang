@@ -345,6 +345,19 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
         else:
             operation = assignmentOperationsInt[node.op]
         nodeOut.append(Command(operation,[varScope,varIndex]))
+    elif t == c_ast.TernaryOp:
+        endLabel = Label()
+        isFalseLabel = Label()
+        nodeOut += compileNode(node.cond)
+        addArg()
+        nodeOut.append(Command(0x34, [isFalseLabel]))
+        nodeOut += compileNode(node.iftrue)
+        addArg()
+        nodeOut.append(Command(0x36, [endLabel]))
+        nodeOut.append(isFalseLabel)
+        nodeOut += compileNode(node.iffalse)
+        addArg()
+        nodeOut.append(endLabel)
     elif t == c_ast.UnaryOp:
         if node.op == "!":
             nodeOut += compileNode(node.expr, loopParent, parentLoopCondition)
