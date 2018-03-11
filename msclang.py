@@ -348,14 +348,14 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
     elif t == c_ast.TernaryOp:
         endLabel = Label()
         isFalseLabel = Label()
-        nodeOut += compileNode(node.cond)
+        nodeOut += compileNode(node.cond, loopParent, parentLoopCondition)
         addArg()
         nodeOut.append(Command(0x34, [isFalseLabel]))
-        nodeOut += compileNode(node.iftrue)
+        nodeOut += compileNode(node.iftrue, loopParent, parentLoopCondition)
         addArg()
         nodeOut.append(Command(0x36, [endLabel]))
         nodeOut.append(isFalseLabel)
-        nodeOut += compileNode(node.iffalse)
+        nodeOut += compileNode(node.iffalse, loopParent, parentLoopCondition)
         addArg()
         nodeOut.append(endLabel)
     elif t == c_ast.UnaryOp:
