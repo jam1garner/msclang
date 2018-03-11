@@ -4,6 +4,8 @@ from pycparser import c_parser, c_ast, parse_file
 import re
 import math
 import struct
+from subprocess import Popen, PIPE
+import os.path
 
 # Add to this as you see reasonable 
 global_constants = {
@@ -109,6 +111,10 @@ syscalls = {
 }  
 
 class CompilerError(Exception):
+    def __init__(self,*args,**kwargs):
+        Exception.__init__(self,*args,**kwargs)
+
+class PreprocessorError(Exception):
     def __init__(self,*args,**kwargs):
         Exception.__init__(self,*args,**kwargs)
 
@@ -693,15 +699,10 @@ def writeToFile(msc):
     with open(filename, 'wb') as f:
         f.write(fileBytes)
 
-# Parse and compile from a string
-def compileString(fileText):
+def compileAST(ast):
     global args, msc, refs
-    parser = c_parser.CParser()
-    text = removeComments(fileText)
-    ast = parser.parse(text, filename='<none>')
     refs = FileRefs()
     msc = MscFile()
-
     for decl in ast.ext:
         if isinstance(decl, c_ast.Decl):
             if decl.init != None:
@@ -727,20 +728,46 @@ def compileString(fileText):
     resolveReferences(msc)
     writeToFile(msc)
 
+# Parse and compile from a string
+def compileString(fileText):
+    global args, msc, refs
+    parser = c_parser.CParser()
+    text = removeComments(fileText)
+    ast = parser.parse(text, filename='<none>')
+    compileAST(ast)
+
 def compileFile(filepath):
     with open(filepath, 'r') as f:
         return compileString(f.read())
+
+def preprocess(filepath):
+    global args
+    try:
+        process = Popen(["cpp" if args.preprocessor == None else args.preprocessor, filepath], stdout=PIPE)
+        (output, err) = process.communicate()
+        exit_code = process.wait()
+        if output != None:
+            output = output.decode('latin8').replace('\r\n', '\n')
+            return output
+    except:
+        pass
+    
+    with open(filepath, 'r') as f:
+        return removeComments(f.read())
 
 # Compile contents of the file to a string
 def main(arguments):
     global args
     args = arguments
     for file in args.files:
-        b = compileFile(file)
+        if args.filename == None:
+            args.filename = os.path.basename(os.path.splitext(file)[0]) + '.mscsb'
+        compileString(preprocess(file))
 
 if __name__ == "__main__":
     parser = ArgumentParser(description="Compile msC to MSC bytecode")
     parser.add_argument('files', metavar='files', type=str, nargs='+',
                         help='files to compile')
     parser.add_argument('-o', dest='filename', help='Filename to output to')
+    parser.add_argument('-pp', dest='preprocessor', help='Preprocessor to use')
     main(parser.parse_args())
