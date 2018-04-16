@@ -471,8 +471,9 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
             nodeOut += compileNode(node.iffalse, loopParent, parentLoopCondition)
             nodeOut.append(endLabel)
     elif t == c_ast.Compound:
-        for i in node.block_items:
-            nodeOut += compileNode(i, loopParent, parentLoopCondition)
+        if node.block_items != None:
+            for i in node.block_items:
+                nodeOut += compileNode(i, loopParent, parentLoopCondition)
     elif t == c_ast.While:
         loopTop = Label()
         endLabel = Label()
