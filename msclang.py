@@ -600,8 +600,9 @@ def compileScript(func):
     localVarTypes = dict([(x.name, x.type.type.names[-1]) for x in func.decl.type.args.params] if func.decl.type.args != None else [])
     argCount = len(localVars)
     script = []
-    for node in func.body.block_items:
-        script += compileNode(node)
+    if func.body.block_items != None:
+        for node in func.body.block_items:
+            script += compileNode(node)
     script.insert(0, Command(2, [argCount, len(localVars)]))
     script.append(Command(3))
     return script
