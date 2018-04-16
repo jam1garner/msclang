@@ -553,6 +553,17 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
             nodeOut += funcPtr
             addArg()
             nodeOut.append(Command(0x30, [len(funcArgs)]))
+        elif name == "callFunc3":
+            if len(node.args.exprs) == 0:
+                raise CompilerError("Error at %s: callFunc3 requires at least 1 argument (function pointer)"%str(node.coord))
+            funcPtr = compileNode(node.args.exprs[0], loopParent, parentLoopCondition)
+            funcArgs = node.args.exprs[1:]
+            for arg in funcArgs:
+                nodeOut += compileNode(arg, loopParent, parentLoopCondition)
+                addArg()
+            nodeOut += funcPtr
+            addArg()
+            nodeOut.append(Command(0x31, [len(funcArgs)]))
         elif name in syscalls:
             sysNum = syscalls[name]
             for arg in node.args.exprs:
