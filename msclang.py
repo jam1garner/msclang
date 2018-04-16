@@ -586,6 +586,7 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
                     nodeOut += compileNode(arg, loopParent, parentLoopCondition)
                     addArg()
             nodeOut += funcPtr
+            addArg()
             nodeOut.append(Command(0x2f, [len(node.args.exprs) if node.args != None else 0]))
             nodeOut.append(endLabel)
     else:
