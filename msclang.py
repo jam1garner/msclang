@@ -325,13 +325,13 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
     elif t == c_ast.Constant:
         if node.type == "int" or node.type == "bool":
             newValue = toInt(node.value) & 0xFFFFFFFF
-            nodeOut.append(Command(0xD if newValue <= 0xFFFF else 0xA, [newValue]))
+            nodeOut.append(Command(0xD if newValue <= 0xFFFF and args.usePushShort else 0xA, [newValue]))
         elif node.type == "float":
             nodeOut.append(Command(0xA, [float(node.value.rstrip('f'))]))
         elif node.type == "string":
             if not node.value[1:-1] in msc.strings:
                 msc.strings.append(node.value[1:-1])
-            nodeOut.append(Command(0xD, [msc.strings.index(node.value[1:-1])]))
+            nodeOut.append(Command(0xD if args.usePushShort else 0xA, [msc.strings.index(node.value[1:-1])]))
     elif t == c_ast.Assignment:
         nodeOut += compileNode(node.rvalue, loopParent, parentLoopCondition)
         addArg()
@@ -787,4 +787,5 @@ if __name__ == "__main__":
     parser.add_argument('-o', dest='filename', help='Filename to output to')
     parser.add_argument('-pp', dest='preprocessor', help='Preprocessor to use')
     parser.add_argument('-a', '--autocast', dest='autocast', action='store_true', help='Autocast between int and float types when relevant (Note: don\'t use with decompiled files)')
+    parser.add_argument('-i', '--pushInt', dest='usePushShort', action='store_false', help='Disable using pushShort as a space saver')
     main(parser.parse_args())
