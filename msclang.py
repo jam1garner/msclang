@@ -259,7 +259,7 @@ def isCommandFloat(cmd, lookingFor):
 
 # Take a abstract syntax tree node and recursively compile it
 def compileNode(node, loopParent=None, parentLoopCondition=None):
-    global refs, localVars, localVarTypes
+    global refs, localVars, localVarTypes,args
 
     nodeOut = []
 
@@ -342,10 +342,11 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
         except CompilerError:
             raise CompilerError("Error at %s: Left hand side of assignment operation must be a valid reference to a variable."%str(node.coord))
         
-        if varType == "float" and not isCommandFloat(getLastCommand(), True):
-                nodeOut.append(Command(0x38, [0]))
-        elif varType != "float" and isCommandFloat(getLastCommand(), False):
-                nodeOut.append(Command(0x39, [0]))
+        if args.autocast:
+            if varType == "float" and not isCommandFloat(getLastCommand(), True):
+                    nodeOut.append(Command(0x38, [0]))
+            elif varType != "float" and isCommandFloat(getLastCommand(), False):
+                    nodeOut.append(Command(0x39, [0]))
         
         if varType == "float":
             operation = assignmentOperationsFloat[node.op]
@@ -440,7 +441,7 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
         isFloat2 = isCommandFloat(getLastCommand(), isFloat1)
         isFloat = isFloat1 or isFloat2
         cmd = binaryOperationsFloat[node.op] if isFloat else binaryOperationsInt[node.op]
-        if not cmd in range(0x16, 0x1C) and isFloat:
+        if not cmd in range(0x16, 0x1C) and isFloat and args.autocast:
             if not isFloat1:
                 nodeOut.insert(pos, Command(0x38,[0]))
             if not isFloat2:
@@ -785,4 +786,5 @@ if __name__ == "__main__":
                         help='files to compile')
     parser.add_argument('-o', dest='filename', help='Filename to output to')
     parser.add_argument('-pp', dest='preprocessor', help='Preprocessor to use')
+    parser.add_argument('-a', '--autocast', dest='autocast', action='store_true', help='Autocast between int and float types when relevant (Note: don\'t use with decompiled files)')
     main(parser.parse_args())
