@@ -479,7 +479,7 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
         loopTop = Label()
         endLabel = Label()
         conditionLabel = Label()
-        nodeOut.append(Command(0x4, [conditionLabel]))
+        nodeOut.append(Command(0x36, [conditionLabel]))
         nodeOut.append(loopTop)
         nodeOut += compileNode(node.stmt, endLabel, conditionLabel)
         nodeOut.append(conditionLabel)
