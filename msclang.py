@@ -354,18 +354,37 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
             operation = assignmentOperationsInt[node.op]
         nodeOut.append(Command(operation,[varScope,varIndex]))
     elif t == c_ast.TernaryOp:
-        endLabel = Label()
-        isFalseLabel = Label()
-        nodeOut += compileNode(node.cond, loopParent, parentLoopCondition)
-        addArg()
-        nodeOut.append(Command(0x34, [isFalseLabel]))
-        nodeOut += compileNode(node.iftrue, loopParent, parentLoopCondition)
-        addArg()
-        nodeOut.append(Command(0x36, [endLabel]))
-        nodeOut.append(isFalseLabel)
-        nodeOut += compileNode(node.iffalse, loopParent, parentLoopCondition)
-        addArg()
-        nodeOut.append(endLabel)
+        if (type(node.iftrue) == c_ast.TernaryOp and type(node.iffalse) == c_ast.Constant and
+            node.iffalse.value == "0" and type(node.iftrue.iftrue) == c_ast.Constant and
+            node.iftrue.iftrue.value == "1" and type(node.iftrue.iffalse) == c_ast.Constant and
+            node.iftrue.iffalse.value == "0"):
+            # If tail end ternary combination is possible
+            endLabel = Label()
+            isFalseLabel = Label()
+            nodeOut += compileNode(node.cond, loopParent, parentLoopCondition)
+            addArg()
+            nodeOut.append(Command(0x34, [isFalseLabel]))
+            nodeOut += compileNode(node.iftrue.cond, loopParent, parentLoopCondition)
+            addArg()
+            nodeOut.append(Command(0x34, [isFalseLabel]))
+            nodeOut.append(Command(0xD if args.usePushShort else 0xA, [1], True))
+            nodeOut.append(isFalseLabel)
+            nodeOut.append(Command(0x36, [endLabel]))
+            nodeOut.append(Command(0xD if args.usePushShort else 0xA, [0], True))
+            nodeOut.append(endLabel)
+        else:
+            endLabel = Label()
+            isFalseLabel = Label()
+            nodeOut += compileNode(node.cond, loopParent, parentLoopCondition)
+            addArg()
+            nodeOut.append(Command(0x34, [isFalseLabel]))
+            nodeOut += compileNode(node.iftrue, loopParent, parentLoopCondition)
+            addArg()
+            nodeOut.append(Command(0x36, [endLabel]))
+            nodeOut.append(isFalseLabel)
+            nodeOut += compileNode(node.iffalse, loopParent, parentLoopCondition)
+            addArg()
+            nodeOut.append(endLabel)
     elif t == c_ast.UnaryOp:
         if node.op == "!":
             nodeOut += compileNode(node.expr, loopParent, parentLoopCondition)
