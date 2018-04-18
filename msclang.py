@@ -331,7 +331,7 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
         elif node.type == "string":
             if not node.value[1:-1] in msc.strings:
                 msc.strings.append(node.value[1:-1])
-            nodeOut.append(Command(0xD if args.usePushShort else 0xA, [msc.strings.index(node.value[1:-1])]))
+            nodeOut.append(Command(0xD, [msc.strings.index(node.value[1:-1])]))
     elif t == c_ast.Assignment:
         nodeOut += compileNode(node.rvalue, loopParent, parentLoopCondition)
         addArg()
