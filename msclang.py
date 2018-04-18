@@ -411,10 +411,18 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
             op = 0x40 if varType == "float" else 0x15
             nodeOut.append(Command(op, [varScope,varIndex]))
         elif node.op == "-":
-            nodeOut += compileNode(node.expr, loopParent, parentLoopCondition)
-            addArg()
-            op = 0x3E if isCommandFloat(nodeOut[-1], False) else 0x13
-            nodeOut.append(Command(op))
+            if type(node.expr) == c_ast.Constant:
+                node = node.expr
+                if node.type == "int":
+                    newValue = (-toInt(node.value)) & 0xFFFFFFFF
+                    nodeOut.append(Command(0xD if newValue <= 0xFFFF and args.usePushShort else 0xA, [newValue]))
+                elif node.type == "float":
+                    nodeOut.append(Command(0xA, [-float(node.value.rstrip('f'))]))
+            else:
+                nodeOut += compileNode(node.expr, loopParent, parentLoopCondition)
+                addArg()
+                op = 0x3E if isCommandFloat(nodeOut[-1], False) else 0x13
+                nodeOut.append(Command(op))
         elif node.op == "&":
             if type(node.expr) == c_ast.ID:
                 nodeOut.append(Command(0xA,[node.expr.name]))
