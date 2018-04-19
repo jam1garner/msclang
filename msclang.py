@@ -355,9 +355,10 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
         nodeOut.append(Command(operation,[varScope,varIndex]))
     elif t == c_ast.TernaryOp:
         if (type(node.iftrue) == c_ast.TernaryOp and type(node.iffalse) == c_ast.Constant and
-            node.iffalse.value == "0" and type(node.iftrue.iftrue) == c_ast.Constant and
-            node.iftrue.iftrue.value == "1" and type(node.iftrue.iffalse) == c_ast.Constant and
-            node.iftrue.iffalse.value == "0"):
+            node.iffalse.type == "int" and int(node.iffalse.value, 0) == 0 and
+            type(node.iftrue.iftrue) == c_ast.Constant and node.iftrue.iftrue.type == "int" and
+            int(node.iftrue.iftrue.value, 0) == 1 and type(node.iftrue.iffalse) == c_ast.Constant and
+            node.iftrue.iffalse.type == "int" and int(node.iftrue.iffalse.value, 0) == 0):
             # If tail end ternary combination is possible
             endLabel = Label()
             isFalseLabel = Label()
@@ -368,8 +369,8 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
             addArg()
             nodeOut.append(Command(0x34, [isFalseLabel]))
             nodeOut.append(Command(0xD if args.usePushShort else 0xA, [1], True))
-            nodeOut.append(isFalseLabel)
             nodeOut.append(Command(0x36, [endLabel]))
+            nodeOut.append(isFalseLabel)
             nodeOut.append(Command(0xD if args.usePushShort else 0xA, [0], True))
             nodeOut.append(endLabel)
         else:
