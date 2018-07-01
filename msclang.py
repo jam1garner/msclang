@@ -422,7 +422,7 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
             else:
                 nodeOut += compileNode(node.expr, loopParent, parentLoopCondition)
                 addArg()
-                op = 0x3E if isCommandFloat(nodeOut[-1], False) else 0x13
+                op = 0x3E if isCommandFloat(getLastCommand(), False) else 0x13
                 nodeOut.append(Command(op))
         elif node.op == "&":
             if type(node.expr) == c_ast.ID:
