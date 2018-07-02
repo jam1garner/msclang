@@ -172,8 +172,6 @@ binaryOperationsInt = {
     "&"  : 0x16,
     "|"  : 0x17,
     "^"  : 0x19,
-    "&&"  : 0x16,
-    "||"  : 0x17,
     "<<" : 0x1a,
     ">>" : 0x1b
 }
@@ -460,21 +458,52 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
             op = 0x8 if isCommandFloat(getLastCommand(), False) else 0x6
             nodeOut.append(Command(op))
     elif t == c_ast.BinaryOp:
-        nodeOut += compileNode(node.left, loopParent, parentLoopCondition)
-        addArg()
-        pos = len(nodeOut)
-        isFloat1 = isCommandFloat(getLastCommand(), False)
-        nodeOut += compileNode(node.right, loopParent, parentLoopCondition)
-        addArg()
-        isFloat2 = isCommandFloat(getLastCommand(), isFloat1)
-        isFloat = isFloat1 or isFloat2
-        cmd = binaryOperationsFloat[node.op] if isFloat else binaryOperationsInt[node.op]
-        if not cmd in range(0x16, 0x1C) and isFloat and args.autocast:
-            if not isFloat1:
-                nodeOut.insert(pos, Command(0x38,[0]))
-            if not isFloat2:
-                nodeOut.append(Command(0x38,[0]))
-        nodeOut.append(Command(cmd))
+        if node.op in ["&&", "||"]:
+            nodeOut += compileNode(node.left, loopParent, parentLoopCondition)
+            addArg()
+            if node.op == "||":
+                endOrLabel, trueLabel, falseLabel = Label(), Label(), Label()
+                nodeOut.append(Command(0x35, [trueLabel]))
+                nodeOut += compileNode(node.right, loopParent, parentLoopCondition)
+                addArg()
+                nodeOut.append(Command(0x34, [falseLabel]))
+                nodeOut.append(trueLabel)
+                nodeOut.append(Command(0xD, [1]))
+                addArg()
+                nodeOut.append(Command(0x36, [endOrLabel]))
+                nodeOut.append(falseLabel)
+                nodeOut.append(Command(0xD, [0]))
+                addArg()
+                nodeOut.append(endOrLabel)
+            else:
+                endAndLabel, falseLabel = Label(), Label()
+                nodeOut.append(Command(0x34, [falseLabel]))
+                nodeOut += compileNode(node.right, loopParent, parentLoopCondition)
+                addArg()
+                nodeOut.append(Command(0x34, [falseLabel]))
+                nodeOut.append(Command(0xD, [1]))
+                addArg()
+                nodeOut.append(Command(0x36, [endAndLabel]))
+                nodeOut.append(falseLabel)
+                nodeOut.append(Command(0xD, [0]))
+                addArg()
+                nodeOut.append(endAndLabel)
+        else:
+            nodeOut += compileNode(node.left, loopParent, parentLoopCondition)
+            addArg()
+            pos = len(nodeOut)
+            isFloat1 = isCommandFloat(getLastCommand(), False)
+            nodeOut += compileNode(node.right, loopParent, parentLoopCondition)
+            addArg()
+            isFloat2 = isCommandFloat(getLastCommand(), isFloat1)
+            isFloat = isFloat1 or isFloat2
+            cmd = binaryOperationsFloat[node.op] if isFloat else binaryOperationsInt[node.op]
+            if not cmd in range(0x16, 0x1C) and isFloat and args.autocast:
+                if not isFloat1:
+                    nodeOut.insert(pos, Command(0x38,[0]))
+                if not isFloat2:
+                    nodeOut.append(Command(0x38,[0]))
+            nodeOut.append(Command(cmd))
     elif t == c_ast.Goto:
         nodeOut.append(Command(0x4,[node.name]))
     elif t == c_ast.Label:
