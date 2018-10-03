@@ -651,7 +651,7 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
             addArg()
             functionCallCommand = Command(0x2f, [len(node.args.exprs) if node.args != None else 0])
             functionCallCommand.functionName = name
-            nodeOut.append()
+            nodeOut.append(functionCallCommand)
             nodeOut.append(endLabel)
     else:
         node.show()
