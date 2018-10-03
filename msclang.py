@@ -7,7 +7,7 @@ import struct
 from subprocess import Popen, PIPE
 import os.path
 
-# Add to this as you see reasonable 
+# Add to this as you see reasonable
 global_constants = {
     "NULL"          : 0,
     "false"         : 0,
@@ -186,7 +186,7 @@ binaryOperationsFloat = {
     "!=" : 0x47,
     "<"  : 0x48,
     "<=" : 0x49,
-    ">"  : 0x4a,    
+    ">"  : 0x4a,
     ">=" : 0x4b,
     "&"  : 0x16,
     "%"  : 0x12,
@@ -249,7 +249,7 @@ def isCommandFloat(cmd, lookingFor):
         return lookingFor
     if cmd.command == 0x2f:
         if cmd.functionName in refs.functions:
-            return (refs.functionTypes[cmd.functionName] == float)
+            return (refs.functionTypes[cmd.functionName] == "float")
     if cmd.command in floatOperations or (cmd.command == 0xA and type(cmd.parameters[0]) == float):
         return True
     if cmd.command == 0xb:
@@ -286,7 +286,7 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
         if len(nodeOut) > 0:
             i = 1
             while i <= len(nodeOut):
-                if type(nodeOut[-i]) == Command and not nodeOut[-i].command in range(0x2f,0x32) and not nodeOut[-i].command in range(0x38,0x3a): 
+                if type(nodeOut[-i]) == Command and not nodeOut[-i].command in range(0x2f,0x32) and not nodeOut[-i].command in range(0x38,0x3a):
                     nodeOut[-i].pushBit = True
                     return
                 elif type(nodeOut[-i]) == Command and not nodeOut[-i].command in range(0x38,0x3a):
