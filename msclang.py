@@ -119,10 +119,11 @@ class PreprocessorError(Exception):
         Exception.__init__(self,*args,**kwargs)
 
 class FileRefs:
-    def __init__(self, functions=[], globalVariables=[], globalVariableTypes={}):
+    def __init__(self, functions=[], globalVariables=[], globalVariableTypes={},functionTypes={}):
         self.functions = functions
         self.globalVariables = globalVariables
         self.globalVariableTypes = globalVariableTypes
+        self.functionTypes = functionTypes
 
 def removeComments(text):
     text = re.sub(
@@ -246,6 +247,9 @@ def isCommandFloat(cmd, lookingFor):
     global refs, localVars, localVarTypes
     if cmd.command == 0x2d:
         return lookingFor
+    if cmd.command == 0x2f:
+        if cmd.functionName in refs.functions:
+            return (refs.functionTypes[cmd.functionName] == float)
     if cmd.command in floatOperations or (cmd.command == 0xA and type(cmd.parameters[0]) == float):
         return True
     if cmd.command == 0xb:
@@ -645,7 +649,9 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
                     addArg()
             nodeOut += funcPtr
             addArg()
-            nodeOut.append(Command(0x2f, [len(node.args.exprs) if node.args != None else 0]))
+            functionCallCommand = Command(0x2f, [len(node.args.exprs) if node.args != None else 0])
+            functionCallCommand.functionName = name
+            nodeOut.append()
             nodeOut.append(endLabel)
     else:
         node.show()
@@ -790,6 +796,7 @@ def compileAST(ast):
                 raise CompilerError("Error at %s: Function %s cannot be redeclared." % (str(decl.coord),decl.name))
             else:
                 refs.functions.append(decl.decl.name)
+                refs.functionTypes[decl.decl.name] = decl.decl.type.type.type.names[0]
         else:
             raise CompilerError("Error at %s: unsupported statement, structure or declaration. Use --ignore-invalid to avoid this error." % str(decl.coord))
 
