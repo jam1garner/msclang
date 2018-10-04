@@ -208,6 +208,7 @@ operationOpposite = {
 }
 
 floatOperations = list(range(0x3a,0x46)) + [0x38]
+FLOAT_RETURN_SYSCALLS = [0x0a, 0x0f, 0x11, 0x13, 0x15, 0x17, 0x1b, 0x25, 0x28, 0x2b, 0x2c, 0x2f, 0x3d]
 
 class Label:
     def __init__(self, name=None):
@@ -245,6 +246,8 @@ def resolveVariable(name):
 # Guess if a command returns a float or an int
 def isCommandFloat(cmd, lookingFor):
     global refs, localVars, localVarTypes
+    if cmd.command == 0x2d and cmd.parameters[1] in FLOAT_RETURN_SYSCALLS:
+        return True
     if cmd.command == 0x2d:
         return lookingFor
     if cmd.command == 0x2f:
