@@ -462,8 +462,7 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
         else:
             nodeOut += compileNode(node.expr, loopParent, parentLoopCondition)
             addArg()
-            op = 0x8 if isCommandFloat(getLastCommand(), False) else 0x6
-            nodeOut.append(Command(op))
+            nodeOut.append(Command(0x6))
     elif t == c_ast.BinaryOp:
         if node.op in ["&&", "||"]:
             nodeOut += compileNode(node.left, loopParent, parentLoopCondition)
