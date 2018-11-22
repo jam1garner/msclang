@@ -613,10 +613,13 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
                 if methodInfo == None:
                     raise CompilerError("Syscall {}, method {} is not defined".format(syscallName, methodName))
                 nodeOut.append(Command(0xA, [methodInfo.id], pushBit=True))
-                for arg in node.args.exprs:
-                    nodeOut += compileNode(arg, loopParent, parentLoopCondition)
-                    addArg()
-                nodeOut.append(Command(0x2d, [len(node.args.exprs), sysNum]))
+                if node.args != None:
+                    for arg in node.args.exprs:
+                        nodeOut += compileNode(arg, loopParent, parentLoopCondition)
+                        addArg()
+                    nodeOut.append(Command(0x2d, [len(node.args.exprs) + 1, syscallInfo.id]))
+                else:
+                    nodeOut.append(Command(0x2d, [1, syscallInfo.id]))
             else:
                 raise CompilerError("Syscall {} not found".format(syscallName))
         elif name == "printf":
