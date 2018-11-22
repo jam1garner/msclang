@@ -1,5 +1,8 @@
 from xml.etree import ElementTree as ET
 from enum import Enum
+from os.path import exists, abspath, expanduser, join, dirname, realpath
+from sys import platform
+import os
 
 class VariableLabel:
     def __init__(self, id=None, name=None):
@@ -80,3 +83,16 @@ class MscXmlInfo:
                 if globalVar.id == searchFor:
                     return globalVar
 
+def getXmlInfoPath():
+    # If the user in on a unix system, use $HOME/.mscinfo if it exists
+    if platform in ['linux', 'darwin']:
+        if exists(abspath(expanduser('~/.mscinfo'))):
+            return abspath(expanduser('~/.mscinfo'))
+    elif platform.startswith('win'):
+        path = join(os.getenv('LOCALAPPDATA'), 'mscinfo.xml')
+        if exists(path):
+            return path
+    __location__ = realpath(join(os.getcwd(), dirname(__file__)))
+    path = join(__location__, "mscinfo.xml")
+    if exists(path):
+        return path
