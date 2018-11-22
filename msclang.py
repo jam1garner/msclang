@@ -6,6 +6,7 @@ import math
 import struct
 from subprocess import Popen, PIPE
 import os.path
+from xml_info import MscXmlInfo, VariableLabel
 
 # Add to this as you see reasonable
 global_constants = {
@@ -108,7 +109,7 @@ syscalls = {
     "sys_4B" : 75,
     "sys_4C" : 76,
     "sys_4D" : 77
-}  
+}
 
 class CompilerError(Exception):
     def __init__(self,*args,**kwargs):
@@ -128,7 +129,7 @@ class FileRefs:
 def removeComments(text):
     text = re.sub(
        '(?:\\/\\*(?=(?:[^"]*"[^"]*")*[^"]*$)(.|\\n)*?\\*\\/)|(?:\\/\\/(?=(?:[^"]*"[^"]*")*[^"]*$).*)', 
-       '', 
+       '',
        text
     )
     return text
@@ -264,7 +265,7 @@ def isCommandFloat(cmd, lookingFor):
 
 # Take a abstract syntax tree node and recursively compile it
 def compileNode(node, loopParent=None, parentLoopCondition=None):
-    global refs, localVars, localVarTypes,args
+    global refs, localVars, localVarTypes, args, xmlInfo
 
     nodeOut = []
 
@@ -301,7 +302,7 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
                 i += 1
 
     t = type(node)
-    
+
     # Check the type, depending on which type it is compile as it should
     # If an argument needs to be compiled, recursively call compile on the node
 
@@ -346,13 +347,13 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
             varScope,varType,varIndex = resolveVariable(node.lvalue.name)
         except CompilerError:
             raise CompilerError("Error at %s: Left hand side of assignment operation must be a valid reference to a variable."%str(node.coord))
-        
+
         if args.autocast:
             if varType == "float" and not isCommandFloat(getLastCommand(), True):
                     nodeOut.append(Command(0x38, [0]))
             elif varType != "float" and isCommandFloat(getLastCommand(), False):
                     nodeOut.append(Command(0x39, [0]))
-        
+
         if varType == "float":
             operation = assignmentOperationsFloat[node.op]
         else:
@@ -603,7 +604,22 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
         nodeOut.append(blockEnd)
     elif t == c_ast.FuncCall:
         name = None if type(node.name) != c_ast.ID else node.name.name
-        if name == "printf":
+        if name == None and type(node.name) == c_ast.StructRef:
+            syscallName = node.name.name.name
+            methodName = node.name.field.name
+            syscallInfo = xmlInfo.getSyscall(syscallName)
+            if syscallInfo != None:
+                methodInfo = syscallInfo.getMethod(methodName)
+                if methodInfo == None:
+                    raise CompilerError("Syscall {}, method {} is not defined".format(syscallName, methodName))
+                nodeOut.append(Command(0xA, [methodInfo.id], pushBit=True))
+                for arg in node.args.exprs:
+                    nodeOut += compileNode(arg, loopParent, parentLoopCondition)
+                    addArg()
+                nodeOut.append(Command(0x2d, [len(node.args.exprs), sysNum]))
+            else:
+                raise CompilerError("Syscall {} not found".format(syscallName))
+        elif name == "printf":
             for arg in node.args.exprs:
                 nodeOut += compileNode(arg, loopParent, parentLoopCondition)
                 addArg()
@@ -833,13 +849,16 @@ def preprocess(filepath):
             return output
     except:
         pass
-    
+
     with open(filepath, 'r') as f:
         return removeComments(f.read())
 
 # Compile contents of the file to a string
 def main(arguments):
-    global args
+    global args, xmlInfo
+    xmlInfo = MscXmlInfo("labels.xml")
+    for s in xmlInfo.syscalls:
+        syscalls[s.name] = s.id
     args = arguments
     for file in args.files:
         if args.filename == None:
