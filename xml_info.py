@@ -1,0 +1,82 @@
+from xml.etree import ElementTree as ET
+from enum import Enum
+
+class VariableLabel:
+    def __init__(self, id=None, name=None):
+        self.id = id
+        self.name = name
+        self.methods = []
+
+    def getMethod(self, searchFor):
+        if type(searchFor) == str:
+            for method in self.methods:
+                if method.name == searchFor:
+                    return method
+        elif type(searchFor) == int:
+            for method in self.methods:
+                if method.id == searchFor:
+                    return method
+
+class MscXmlInfo:
+    def __init__(self, filename=None):
+        self.globals = []
+        self.functions = []
+        self.syscalls = []
+        if filename != None:
+            self.read(filename)
+
+    def read(self, filename):
+        labels = ET.parse(filename).getroot()
+        for function in labels.find("functions").findall("function"):
+            self.functions.append(VariableLabel(
+                    int(function.find("id").text, 0),
+                    function.find("name").text
+                ))
+        for globalNode in labels.find("globals").findall("global"):
+            self.globals.append(VariableLabel(
+                    int(globalNode.find("id").text, 0),
+                    globalNode.find("name").text
+                ))
+        for syscall in labels.find("syscalls").findall("syscall"):
+            syscallLabel = VariableLabel(
+                        int(syscall.find("id").text, 0),
+                        syscall.find("name").text
+                    )
+            if syscall.find("methods") != None:
+                for method in syscall.find("methods").findall("method"):
+                    syscallLabel.methods.append(VariableLabel(
+                        int(method.find("id").text, 0),
+                        method.find("name").text
+                    ))
+            self.syscalls.append(syscallLabel)
+
+    def getFunc(self, searchFor):
+        if type(searchFor) == str:
+            for function in self.functions:
+                if function.name == searchFor:
+                    return function
+        elif type(searchFor) == int:
+            for function in self.functions:
+                if function.id == searchFor:
+                    return function
+
+    def getSyscall(self, searchFor):
+        if type(searchFor) == str:
+            for syscall in self.syscalls:
+                if syscall.name == searchFor:
+                    return syscall
+        elif type(searchFor) == int:
+            for syscall in self.syscalls:
+                if syscall.id == searchFor:
+                    return syscall
+
+    def getGlobal(self, searchFor):
+        if type(searchFor) == str:
+            for globalVar in self.globals:
+                if globalVar.name == searchFor:
+                    return globalVar
+        elif type(searchFor) == int:
+            for globalVar in self.globals:
+                if globalVar.id == searchFor:
+                    return globalVar
+
