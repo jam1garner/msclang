@@ -332,7 +332,7 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
         if node.type == "int" or node.type == "bool":
             newValue = toInt(node.value) & 0xFFFFFFFF
             nodeOut.append(Command(0xD if newValue <= 0xFFFF and args.usePushShort else 0xA, [newValue]))
-        elif node.type == "float":
+        elif node.type == "float" or node.type == "double":
             nodeOut.append(Command(0xA, [float(node.value.rstrip('f'))]))
         elif node.type == "string":
             if not node.value[1:-1] in msc.strings:
@@ -423,7 +423,7 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
                 if node.type == "int":
                     newValue = (-toInt(node.value)) & 0xFFFFFFFF
                     nodeOut.append(Command(0xD if newValue <= 0xFFFF and args.usePushShort else 0xA, [newValue]))
-                elif node.type == "float":
+                elif node.type == "float" or node.type == "double":
                     nodeOut.append(Command(0xA, [-float(node.value.rstrip('f'))]))
             else:
                 nodeOut += compileNode(node.expr, loopParent, parentLoopCondition)
