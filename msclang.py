@@ -6,7 +6,7 @@ import math
 import struct
 from subprocess import Popen, PIPE
 import os.path
-from xml_info import MscXmlInfo, VariableLabel
+from xml_info import MscXmlInfo, VariableLabel, getXmlInfoPath
 
 # Add to this as you see reasonable
 global_constants = {
@@ -859,7 +859,12 @@ def preprocess(filepath):
 # Compile contents of the file to a string
 def main(arguments):
     global args, xmlInfo
-    xmlInfo = MscXmlInfo("labels.xml")
+    # Use path passed by argument if it exists,
+    # else use the path found from getXmlInfoPath()
+    # if no XmlInfo file is found, xmlPath will be None
+    # MscXmlInfo(None) (aka filename=None) will be an empty MscXmlInfo object
+    xmlPath = args.xmlPath if args.xmlPath != None else getXmlInfoPath()
+    xmlInfo = MscXmlInfo(xmlPath)
     for s in xmlInfo.syscalls:
         syscalls[s.name] = s.id
     args = arguments
@@ -876,4 +881,5 @@ if __name__ == "__main__":
     parser.add_argument('-pp', dest='preprocessor', help='Preprocessor to use')
     parser.add_argument('-a', '--autocast', dest='autocast', action='store_true', help='Autocast between int and float types when relevant (Note: don\'t use with decompiled files)')
     parser.add_argument('-i', '--pushInt', dest='usePushShort', action='store_false', help='Disable using pushShort as a space saver')
+    parser.add_argument('-x', '--xmlPath', dest='xmlPath', help="Path to load overload MSC xml info")
     main(parser.parse_args())
