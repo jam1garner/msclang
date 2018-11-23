@@ -1,6 +1,21 @@
 from msc import *
 from argparse import ArgumentParser
-from pycparser import c_parser, c_ast, parse_file
+# Try and install pycparser if it's not found 
+try:
+    from pycparser import c_parser, c_ast, parse_file
+except ImportError:
+    if input("Pycparser not found, install with pip? (y/n)").startswith('y'):
+        try:
+            import pip
+        except ImportError:
+            import sys
+            sys.stderr.write("Error: Neither pycparser nor pip found\n")
+            quit()
+        else:
+            pip.main(['install', 'pycparser'])
+            import pycparser
+    else:
+        quit()
 import re
 import math
 import struct
