@@ -859,6 +859,7 @@ def preprocess(filepath):
 # Compile contents of the file to a string
 def main(arguments):
     global args, xmlInfo
+    args = arguments
     # Use path passed by argument if it exists,
     # else use the path found from getXmlInfoPath()
     # if no XmlInfo file is found, xmlPath will be None
@@ -867,7 +868,6 @@ def main(arguments):
     xmlInfo = MscXmlInfo(xmlPath)
     for s in xmlInfo.syscalls:
         syscalls[s.name] = s.id
-    args = arguments
     for file in args.files:
         if args.filename == None:
             args.filename = os.path.basename(os.path.splitext(file)[0]) + '.mscsb'
