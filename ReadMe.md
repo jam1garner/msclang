@@ -1,6 +1,6 @@
-# MSClang
+# msclang
 
-MSClang is a custom compiler written in python made to compile C to MSC bytecode. MSC bytecode is a bytecode language used by Super Smash Brothers for Wii U in order to control character logic. It's name comes from the mix of "clang" a popular C compiler and, of course, MSC itself, however no part of clang is used and the name is only intended for pleasure of the user. This in no way indicates any affiliation with clang or it's developers.
+msclang is a custom compiler written in python made to compile C to MSC bytecode. MSC bytecode is a bytecode language used by Super Smash Brothers for Wii U in order to control character logic. It's name comes from the mix of "clang" a popular C compiler and, of course, MSC itself, however no part of clang is used and the name is only intended for pleasure of the user. This in no way indicates any affiliation with clang or it's developers.
 
 ### Requirements
 
@@ -15,7 +15,7 @@ MSClang is a custom compiler written in python made to compile C to MSC bytecode
 
 ### Features
 
-MSClang is based heavily on C but has lots of differences in order to best suite the target environment. While parsing follows the C99 standard, some features are missing. Here is a small list of differences:
+msclang is based heavily on C but has lots of differences in order to best suite the target environment. While parsing follows the C99 standard, some features are missing. Here is a small list of differences:
 
 * Types are primarily limited to int/string
 * strings cannot be modified, only offered in a string literal. A string literal is held as a reference to the string in the form of an id in ascending order starting from 0. References should be held by the `int` type.
