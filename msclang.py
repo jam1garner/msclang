@@ -259,6 +259,48 @@ def resolveVariable(name):
         raise CompilerError("Invalid reference")
     return (varScope,varType,varIndex)
 
+_C_ESCAPES = {
+    "\\" : "\\",
+    "n" : "\n",
+    "a" : "\a",
+    "b" : "\b",
+    "f" : "\f",
+    "r" : "\r",
+    "t" : "\t",
+    "v" : "\v",
+    "'" : "'",
+    '"' : '"',
+    "?" : "?",
+    "0" : "\0"
+}
+
+_OCTAL_CHARS = range(ord("0"), ord("8"))
+
+def apply_c_escapes(string):
+    new_string = ""
+    n = 0
+    while n < len(string):
+        if string[n] == "\\":
+            n += 1
+            if n < len(string):
+                if len(string) > n + 2 and all(ord(string[i]) in _OCTAL_CHARS for i in range(n, n+3)):
+                    new_string += chr(int(string[n:n+3], 8))
+                    n += 2
+                elif string[n] in _C_ESCAPES:
+                    new_string += _C_ESCAPES[string[n]]
+                elif string[n] == "x":
+                    if len(string) > n + 2:
+                        new_string += chr(int(string[n+1:n+3], 0x10))
+                        n += 2
+                    else:
+                        raise CompilerError("Invalid hex escape, not enough values")
+            else:
+                raise CompilerError(f"Error escaping string '{string}'")
+        else:
+            new_string += string[n]
+        n += 1
+    return new_string
+
 # Guess if a command returns a float or an int
 def isCommandFloat(cmd, lookingFor):
     global refs, localVars, localVarTypes
@@ -350,9 +392,10 @@ def compileNode(node, loopParent=None, parentLoopCondition=None):
         elif node.type == "float" or node.type == "double":
             nodeOut.append(Command(0xA, [float(node.value.rstrip('f'))]))
         elif node.type == "string":
-            if not node.value[1:-1] in msc.strings:
-                msc.strings.append(node.value[1:-1])
-            nodeOut.append(Command(0xD, [msc.strings.index(node.value[1:-1])]))
+            string = apply_c_escapes(node.value[1:-1])
+            if not string in msc.strings:
+                msc.strings.append(string)
+            nodeOut.append(Command(0xD, [msc.strings.index(string)]))
     elif t == c_ast.Assignment:
         nodeOut += compileNode(node.rvalue, loopParent, parentLoopCondition)
         addArg()
