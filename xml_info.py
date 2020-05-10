@@ -32,24 +32,24 @@ class MscXmlInfo:
         labels = ET.parse(filename).getroot()
         for function in labels.find("functions").findall("function"):
             self.functions.append(VariableLabel(
-                    int(function.find("id").text, 0),
-                    function.find("name").text
+                    int(function.get("id"), 0),
+                    function.get("name")
                 ))
         for globalNode in labels.find("globals").findall("global"):
             self.globals.append(VariableLabel(
-                    int(globalNode.find("id").text, 0),
-                    globalNode.find("name").text
+                    int(globalNode.get("id"), 0),
+                    globalNode.get("name")
                 ))
         for syscall in labels.find("syscalls").findall("syscall"):
             syscallLabel = VariableLabel(
-                        int(syscall.find("id").text, 0),
-                        syscall.find("name").text
+                        int(syscall.get("id"), 0),
+                        syscall.get("name")
                     )
             if syscall.find("methods") != None:
                 for method in syscall.find("methods").findall("method"):
                     syscallLabel.methods.append(VariableLabel(
-                        int(method.find("id").text, 0),
-                        method.find("name").text
+                        int(method.get("id"), 0),
+                        method.get("name")
                     ))
             self.syscalls.append(syscallLabel)
 
